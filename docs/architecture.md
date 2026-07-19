@@ -1,5 +1,35 @@
 # Architecture
 
+## Dependency direction
+
+Horus Engine keeps financial concepts and application boundaries separate:
+
+```text
+domain
+  ↑
+application contracts
+  ↑
+infrastructure adapters
+```
+
+The domain package contains immutable financial primitives and order models.
+The application package defines exchange-neutral market metadata, normalized
+events, and gateway protocols. Future concrete exchange adapters belong in
+infrastructure and may depend on both lower layers; neither the domain nor the
+application layers may depend on an exchange SDK or venue payload type.
+
+Gateway boundaries use `typing.Protocol` so adapters can satisfy them through
+structural typing without requiring shared base classes. Their asynchronous
+methods expose only immutable domain and application values. `AccountGateway`
+is deliberately deferred until the domain has a small, coherent collateral and
+position model.
+
+Order-book snapshots and market-data events are distinct: a snapshot is an
+authoritative immutable view of aggregate liquidity at one point in time, while
+events communicate a snapshot, a price-level update, a trade, or connection
+state as it is observed. Events contain normalized values rather than raw
+exchange payloads, preserving a stable application contract across adapters.
+
 ## Domain model
 
 The domain layer uses immutable, Decimal-backed financial value objects.

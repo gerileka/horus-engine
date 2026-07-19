@@ -5,9 +5,10 @@ Live trading is disabled by default.
 
 ## Development status
 
-Horus Engine models exchange-independent orders and immutable order-book
-snapshots. It has no exchange connectivity, order submission, or live trading
-capability.
+Horus Engine models exchange-independent orders, immutable order-book
+snapshots, and application-level exchange contracts. It defines market, event,
+and gateway contracts without connecting to any concrete exchange. No orders
+can be submitted, and live trading remains unavailable.
 
 ## Local setup
 
