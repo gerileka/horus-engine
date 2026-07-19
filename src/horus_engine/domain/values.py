@@ -6,6 +6,7 @@ from typing import TypeAlias
 
 from .errors import (
     InvalidMoney,
+    InvalidNonNegativeQuantity,
     InvalidPrice,
     InvalidQuantity,
     InvalidTickSize,
@@ -61,6 +62,27 @@ class Quantity:
         value = _to_decimal(value, InvalidQuantity)
         if value <= Decimal("0"):
             raise InvalidQuantity("quantity must be greater than zero")
+        object.__setattr__(self, "value", value)
+
+
+@dataclass(frozen=True, order=True, init=False)
+class NonNegativeQuantity:
+    """A finite contract quantity that may be zero.
+
+    This type is used for quantities whose domain naturally includes zero, such
+    as an order's filled or remaining quantity and aggregate order-book depth.
+    ``Quantity`` remains strictly positive for quantities that must exist.
+    """
+
+    value: Decimal
+
+    def __init__(self, value: DecimalInput) -> None:
+        """Validate and normalize the supplied value to Decimal."""
+        value = _to_decimal(value, InvalidNonNegativeQuantity)
+        if value < Decimal("0"):
+            raise InvalidNonNegativeQuantity(
+                "quantity must be greater than or equal to zero"
+            )
         object.__setattr__(self, "value", value)
 
 
