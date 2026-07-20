@@ -21,18 +21,26 @@ class MarketCatalogGateway(Protocol):
         ...
 
 
-class MarketDataGateway(Protocol):
-    """Provide snapshots and a normalized stream of market-data events."""
+class OrderBookSnapshotGateway(Protocol):
+    """Provide authoritative immutable order-book snapshots."""
 
     async def get_order_book(self, market_id: MarketId, token_id: TokenId) -> OrderBook:
         """Return the authoritative current order-book snapshot for a token."""
         ...
+
+
+class MarketDataStreamGateway(Protocol):
+    """Provide a normalized stream of observed market-data events."""
 
     def stream_market_data(
         self, market_id: MarketId, token_ids: tuple[TokenId, ...]
     ) -> AsyncIterator[MarketDataEvent]:
         """Return an asynchronous iterator of normalized market-data events."""
         ...
+
+
+class MarketDataGateway(OrderBookSnapshotGateway, MarketDataStreamGateway, Protocol):
+    """Provide both snapshot retrieval and normalized market-data streaming."""
 
 
 class ExecutionGateway(Protocol):
