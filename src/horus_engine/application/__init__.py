@@ -24,7 +24,13 @@ from .events import (
     PriceLevelChanged,
     TradeObserved,
 )
-from .gateways import ExecutionGateway, MarketCatalogGateway, MarketDataGateway
+from .gateways import (
+    ExecutionGateway,
+    MarketCatalogGateway,
+    MarketDataGateway,
+    MarketDataStreamGateway,
+    OrderBookSnapshotGateway,
+)
 from .models import (
     ClientOrderId,
     ExchangeOrderId,
@@ -52,10 +58,12 @@ __all__ = [
     "MarketDataDisconnected",
     "MarketDataEvent",
     "MarketDataGateway",
+    "MarketDataStreamGateway",
     "MarketDataReconnected",
     "MarketId",
     "MarketStatus",
     "OrderAccepted",
+    "OrderBookSnapshotGateway",
     "OrderCancelled",
     "OrderEvent",
     "OrderFilled",

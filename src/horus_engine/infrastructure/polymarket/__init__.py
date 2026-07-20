@@ -1,4 +1,4 @@
-"""Read-only adapters for Polymarket's public Gamma API."""
+"""Read-only adapters for Polymarket's public Gamma and CLOB APIs."""
 
 from .catalog import PolymarketMarketCatalogGateway
 from .errors import (
@@ -6,10 +6,12 @@ from .errors import (
     PolymarketInfrastructureError,
     PolymarketPayloadError,
 )
+from .order_book import PolymarketOrderBookSnapshotGateway
 
 __all__ = [
     "PolymarketHttpError",
     "PolymarketInfrastructureError",
     "PolymarketMarketCatalogGateway",
+    "PolymarketOrderBookSnapshotGateway",
     "PolymarketPayloadError",
 ]

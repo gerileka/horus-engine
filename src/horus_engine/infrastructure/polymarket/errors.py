@@ -1,4 +1,4 @@
-"""Errors raised while translating Polymarket Gamma responses."""
+"""Errors raised while translating public Polymarket Gamma and CLOB responses."""
 
 
 class PolymarketInfrastructureError(RuntimeError):
@@ -6,8 +6,8 @@ class PolymarketInfrastructureError(RuntimeError):
 
 
 class PolymarketHttpError(PolymarketInfrastructureError):
-    """Raised when Gamma cannot be reached or returns an HTTP error."""
+    """Raised when a public Polymarket endpoint cannot be reached or errors."""
 
 
 class PolymarketPayloadError(PolymarketInfrastructureError):
-    """Raised when a Gamma response is malformed or internally inconsistent."""
+    """Raised when a public Polymarket response is malformed or inconsistent."""

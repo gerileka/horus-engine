@@ -12,8 +12,10 @@ from horus_engine.application import (
     MarketCatalogGateway,
     MarketDataEvent,
     MarketDataGateway,
+    MarketDataStreamGateway,
     MarketId,
     MarketStatus,
+    OrderBookSnapshotGateway,
     OrderCancelled,
     OrderEvent,
     TokenId,
@@ -122,6 +124,20 @@ def _accept_market_data(gateway: MarketDataGateway) -> MarketDataGateway:
     return gateway
 
 
+def _accept_snapshot(
+    gateway: OrderBookSnapshotGateway,
+) -> OrderBookSnapshotGateway:
+    """Require snapshot-only structural conformance at mypy type-check time."""
+    return gateway
+
+
+def _accept_market_data_stream(
+    gateway: MarketDataStreamGateway,
+) -> MarketDataStreamGateway:
+    """Require stream-only structural conformance at mypy type-check time."""
+    return gateway
+
+
 def _accept_execution(gateway: ExecutionGateway) -> ExecutionGateway:
     """Require structural conformance at mypy type-check time."""
     return gateway
@@ -134,5 +150,9 @@ def test_fake_gateways_satisfy_the_protocols_structurally() -> None:
     )
     assert isinstance(
         _accept_market_data(FakeMarketDataGateway()), FakeMarketDataGateway
+    )
+    assert isinstance(_accept_snapshot(FakeMarketDataGateway()), FakeMarketDataGateway)
+    assert isinstance(
+        _accept_market_data_stream(FakeMarketDataGateway()), FakeMarketDataGateway
     )
     assert isinstance(_accept_execution(FakeExecutionGateway()), FakeExecutionGateway)
