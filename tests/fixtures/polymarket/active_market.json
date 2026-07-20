@@ -1,0 +1,14 @@
+[
+  {
+    "enableOrderBook": true,
+    "conditionId": "0xcondition-1",
+    "question": "Will Horus Engine stay read-only?",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "clobTokenIds": "[\"yes-token\", \"no-token\"]",
+    "orderPriceMinTickSize": "0.0025",
+    "orderMinSize": "5",
+    "active": true,
+    "acceptingOrders": true,
+    "closed": false
+  }
+]

@@ -18,6 +18,21 @@ events, and gateway protocols. Future concrete exchange adapters belong in
 infrastructure and may depend on both lower layers; neither the domain nor the
 application layers may depend on an exchange SDK or venue payload type.
 
+The infrastructure layer now contains its first concrete adapter:
+`PolymarketMarketCatalogGateway`. It translates public Polymarket Gamma market
+payloads at the infrastructure boundary, so raw Polymarket models never enter
+application or domain code. For this adapter, the Polymarket condition ID is
+the application `MarketId`; Gamma's internal market ID and other venue metadata
+are intentionally not exposed.
+
+The adapter is read-only and retrieves public market metadata only. It neither
+authenticates nor retrieves order books, submits or cancels orders, or enables
+live trading. Its status mapping is conservative: a closed Gamma market is
+`CLOSED`, an active market accepting orders is `ACTIVE`, and every other state
+is `SUSPENDED`. It does not infer `RESOLVED` because Gamma's public market
+response does not provide an authoritative resolution signal used by this
+adapter.
+
 Gateway boundaries use `typing.Protocol` so adapters can satisfy them through
 structural typing without requiring shared base classes. Their asynchronous
 methods expose only immutable domain and application values. `AccountGateway`
