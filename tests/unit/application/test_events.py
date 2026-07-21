@@ -12,6 +12,7 @@ from horus_engine.application import (
     ExchangeOrderId,
     InvalidEventText,
     InvalidEventTimestamp,
+    InvalidTickSizeChange,
     MarketDataDisconnected,
     MarketDataReconnected,
     MarketId,
@@ -21,6 +22,7 @@ from horus_engine.application import (
     OrderPartiallyFilled,
     OrderRejected,
     PriceLevelChanged,
+    TickSizeChanged,
     TokenId,
     TradeObserved,
 )
@@ -32,6 +34,7 @@ from horus_engine.domain import (
     Price,
     Quantity,
     Side,
+    TickSize,
 )
 
 EventFactory = Callable[[datetime], object]
@@ -62,6 +65,13 @@ def _market_data_event_factories() -> tuple[EventFactory, ...]:
             Side.SELL,
             Price("0.41"),
             Quantity("1"),
+            timestamp,
+        ),
+        lambda timestamp: TickSizeChanged(
+            market_id,
+            token_id,
+            TickSize("0.01"),
+            TickSize("0.005"),
             timestamp,
         ),
         lambda timestamp: MarketDataDisconnected("temporary disconnect", timestamp),
@@ -138,6 +148,28 @@ def test_trade_quantity_remains_strictly_positive() -> None:
             Price("0.50"),
             Quantity("0"),
             datetime(2026, 7, 19, 12, 0, tzinfo=UTC),
+        )
+
+
+def test_tick_size_changed_is_immutable_and_requires_a_real_change() -> None:
+    """Retain only valid observed tick-size transitions as immutable events."""
+    timestamp = datetime(2026, 7, 19, 12, 0, tzinfo=UTC)
+    event = TickSizeChanged(
+        MarketId("market-1"),
+        TokenId("token-yes"),
+        TickSize("0.01"),
+        TickSize("0.005"),
+        timestamp,
+    )
+    with pytest.raises(FrozenInstanceError):
+        event.old_tick_size = TickSize("0.02")  # type: ignore[misc]
+    with pytest.raises(InvalidTickSizeChange):
+        TickSizeChanged(
+            MarketId("market-1"),
+            TokenId("token-yes"),
+            TickSize("0.01"),
+            TickSize("0.01"),
+            timestamp,
         )
 
 

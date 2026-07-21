@@ -31,3 +31,7 @@ class InvalidEventTimestamp(ApplicationContractError):
 
 class InvalidEventText(ApplicationContractError):
     """Raised when event text that must be human-readable is blank."""
+
+
+class InvalidTickSizeChange(ApplicationContractError):
+    """Raised when an observed tick-size change does not actually change."""

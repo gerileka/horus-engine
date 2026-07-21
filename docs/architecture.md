@@ -19,7 +19,8 @@ infrastructure and may depend on both lower layers; neither the domain nor the
 application layers may depend on an exchange SDK or venue payload type.
 
 The infrastructure layer contains read-only public Polymarket adapters:
-`PolymarketMarketCatalogGateway` and `PolymarketOrderBookSnapshotGateway`.
+`PolymarketMarketCatalogGateway`, `PolymarketOrderBookSnapshotGateway`, and
+`PolymarketMarketDataStreamGateway`.
 They translate Gamma market payloads and CLOB book payloads at the
 infrastructure boundary, so raw Polymarket models never enter application or
 domain code. For these adapters, the Polymarket condition ID is the application
@@ -41,6 +42,25 @@ price's exact tick alignment, and maps levels to the immutable domain
 `OrderBook`. Empty, locked, and crossed books remain representable because they
 are observed venue state rather than adapter errors.
 
+`PolymarketMarketDataStreamGateway` provides a separate unauthenticated public
+market-data capability through
+`wss://ws-subscriptions-clob.polymarket.com/ws/market`. Each invocation opens
+one connection, sends one token-ID subscription (`assets_ids` plus `type` of
+`market`), and emits normalized `BookSnapshotReceived`, `PriceLevelChanged`,
+`TickSizeChanged`, and `TradeObserved` events. Raw JSON parsing is isolated in
+`websocket_parsing.py`, while `market_stream.py` owns only connection lifecycle
+and the application-level text `PING` heartbeat (ten seconds by default).
+`PONG` is ignored.
+
+The parser decodes JSON financial numbers as `Decimal`, interprets timestamps
+strictly as nonnegative Unix milliseconds in UTC, and verifies that every
+message market and token belongs to the requested subscription before emitting
+an event. WebSocket book snapshots deliberately do not apply tick alignment:
+the public payload has no authoritative tick size. The adapter never stores or
+reconstructs mutable order-book state. It has no automatic reconnection; an
+unexpected transport end produces one `MarketDataDisconnected` event and then
+the stream ends.
+
 Gateway boundaries use `typing.Protocol` so adapters can satisfy them through
 structural typing without requiring shared base classes. `OrderBookSnapshotGateway`
 and `MarketDataStreamGateway` are separate capabilities: retrieving an
@@ -55,9 +75,10 @@ authoritative immutable view of aggregate liquidity at one point in time, while
 events communicate a snapshot, a price-level update, a trade, or connection
 state as it is observed. Events contain normalized values rather than raw
 exchange payloads, preserving a stable application contract across adapters.
-WebSocket streaming is deliberately deferred: the snapshot adapter does not
-pretend to implement that separate capability, and no background polling or
-streaming lifecycle is introduced.
+The snapshot adapter and stream adapter remain separate capabilities: a
+snapshot does not imply streaming, and streaming does not imply a locally
+reconstructed order book. There is no background polling, authentication, order
+management, or live-trading lifecycle in either adapter.
 
 ## Domain model
 

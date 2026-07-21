@@ -8,6 +8,7 @@ from .errors import (
     InvalidExchangeOrderId,
     InvalidMarket,
     InvalidMarketId,
+    InvalidTickSizeChange,
     InvalidTokenId,
 )
 from .events import (
@@ -22,6 +23,7 @@ from .events import (
     OrderPartiallyFilled,
     OrderRejected,
     PriceLevelChanged,
+    TickSizeChanged,
     TradeObserved,
 )
 from .gateways import (
@@ -52,6 +54,7 @@ __all__ = [
     "InvalidExchangeOrderId",
     "InvalidMarket",
     "InvalidMarketId",
+    "InvalidTickSizeChange",
     "InvalidTokenId",
     "Market",
     "MarketCatalogGateway",
@@ -70,6 +73,7 @@ __all__ = [
     "OrderPartiallyFilled",
     "OrderRejected",
     "PriceLevelChanged",
+    "TickSizeChanged",
     "TokenId",
     "TradeObserved",
 ]

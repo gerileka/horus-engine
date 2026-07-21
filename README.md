@@ -7,12 +7,14 @@ Live trading is disabled by default.
 
 Horus Engine models exchange-independent orders, immutable order-book
 snapshots, and application-level exchange contracts. It can retrieve and
-normalize public Polymarket market metadata through the read-only Gamma API and
-one public CLOB order-book snapshot through the read-only CLOB API, without
-passing raw venue payloads into the application or domain layers.
+normalize public Polymarket market metadata through the read-only Gamma API,
+retrieve public CLOB order-book snapshots, and stream public CLOB order-book
+and trade data into exchange-independent application events without passing raw
+venue payloads into the application or domain layers.
 
-It still cannot stream live market data, authenticate, submit orders, cancel
-orders, or trade. Live trading remains unavailable.
+It cannot maintain a continuously reconstructed local order book, automatically
+reconnect, authenticate, submit orders, cancel orders, or trade. Live trading
+remains unavailable.
 
 ## Public Polymarket catalog
 
@@ -56,6 +58,30 @@ async with httpx.AsyncClient() as client:
 
 The returned `OrderBook` is exchange-independent and immutable. This adapter
 does not stream data, authenticate, submit or cancel orders, or trade.
+
+## Public Polymarket market-data stream
+
+The WebSocket adapter streams unauthenticated public market data from
+`wss://ws-subscriptions-clob.polymarket.com/ws/market`. It subscribes once to
+the requested outcome token IDs and normalizes `book`, `price_change`,
+`tick_size_change`, and `last_trade_price` messages into application events.
+It sends the required text `PING` heartbeat every 10 seconds by default; `PONG`
+does not produce an event.
+
+```python
+from horus_engine.application import MarketId, TokenId
+from horus_engine.infrastructure.polymarket import PolymarketMarketDataStreamGateway
+
+stream = PolymarketMarketDataStreamGateway()
+async for event in stream.stream_market_data(
+    MarketId("condition-id"), (TokenId("yes-token"), TokenId("no-token"))
+):
+    print(event)
+```
+
+This is a single, read-only connection lifecycle. It has no authentication,
+order management, or trading API; it does not reconstruct a mutable local book
+and does not automatically reconnect.
 
 ## Local setup
 
