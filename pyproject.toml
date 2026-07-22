@@ -5,6 +5,7 @@ description = "Research-oriented prediction-market market-making system."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "aiosqlite>=0.22.1,<0.23",
     "httpx>=0.28.1",
     "websockets>=16.1.1,<17",
 ]

@@ -1,6 +1,7 @@
 """Immutable, exchange-neutral application models."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from unicodedata import category
 
@@ -27,6 +28,14 @@ def _validate_nonblank_text(value: str, error_type: type[ValueError]) -> None:
     """Reject text that is missing, empty, or composed solely of whitespace."""
     if not isinstance(value, str) or not value or value.isspace():
         raise error_type("text must be a non-blank string")
+
+
+def _validate_aware_timestamp(value: datetime, error_type: type[ValueError]) -> None:
+    """Reject datetimes without an explicit, usable UTC offset."""
+    if not isinstance(value, datetime) or (
+        value.tzinfo is None or value.utcoffset() is None
+    ):
+        raise error_type("timestamps must be timezone-aware")
 
 
 @dataclass(frozen=True, init=False)

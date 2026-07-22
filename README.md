@@ -15,9 +15,36 @@ detects stale and crossed state and requires safe resynchronization with an
 authoritative snapshot.
 
 It cannot orchestrate REST snapshot plus WebSocket startup, reconnect
-automatically, persist market data, calculate fair value, generate quotes,
-authenticate, submit orders, cancel orders, or trade. Live trading remains
-unavailable.
+automatically, replay stored data into a reconstructed book, run a collector
+CLI, calculate fair value, generate quotes, authenticate, submit orders, cancel
+orders, or trade. Live trading remains unavailable.
+
+## SQLite market-data journal
+
+Horus Engine can initialize a versioned SQLite market-data journal, record
+market-data session metadata, persist normalized market-data events and complete
+authoritative snapshots, and read sessions and events back without Decimal
+loss. The journal is deliberately not connected automatically to
+`MarketDataSession`; a future integration runner will own that lifecycle.
+
+Supply and retain ownership of the `aiosqlite` connection:
+
+```python
+import aiosqlite
+
+from horus_engine.infrastructure.sqlite import SQLiteMarketDataJournal
+
+
+async with aiosqlite.connect("horus.db") as connection:
+    journal = SQLiteMarketDataJournal(connection)
+    await journal.initialize()
+```
+
+The journal records normalized snapshots, level changes, trades, tick-size
+changes, and connection lifecycle events in arrival sequence. It does not store
+raw venue payloads, credentials, or any trading capability. It still cannot
+automatically record a running session, replay a journal into a reconstructed
+book, or run a collector CLI.
 
 ## Public Polymarket catalog
 
