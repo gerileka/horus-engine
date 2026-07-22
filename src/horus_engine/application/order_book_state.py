@@ -113,6 +113,15 @@ class LocalOrderBookState:
             raise TypeError("unsupported market-data event")
         return self.view
 
+    def require_snapshot(self, reason: str) -> LocalOrderBookView:
+        """Mark the retained observation stale until a new snapshot is applied."""
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("snapshot requirement reason must be a non-blank string")
+        if self._status is not LocalBookStatus.INVALID:
+            self._status = LocalBookStatus.STALE
+        self._status_reason = reason.strip()
+        return self.view
+
     def _apply_snapshot(self, event: BookSnapshotReceived) -> None:
         """Atomically replace local levels from one authoritative snapshot."""
         self._validate_identity(event.market_id, event.token_id)
