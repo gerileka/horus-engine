@@ -35,3 +35,27 @@ class InvalidEventText(ApplicationContractError):
 
 class InvalidTickSizeChange(ApplicationContractError):
     """Raised when an observed tick-size change does not actually change."""
+
+
+class LocalOrderBookStateError(ApplicationContractError):
+    """Base exception for unsafe local order-book state transitions."""
+
+
+class MarketDataIdentityMismatch(LocalOrderBookStateError):
+    """Raised when an event belongs to a different market or token."""
+
+
+class OutOfOrderMarketDataEvent(LocalOrderBookStateError):
+    """Raised when an event predates the last successfully applied event."""
+
+
+class SnapshotRequired(LocalOrderBookStateError):
+    """Raised when an incremental update needs a fresh authoritative snapshot."""
+
+
+class TickSizeStateMismatch(LocalOrderBookStateError):
+    """Raised when a tick-size event does not match tracked tick state."""
+
+
+class InvalidLocalOrderBook(LocalOrderBookStateError):
+    """Raised when a candidate local book is unsafe to synchronize."""
