@@ -11,3 +11,11 @@ class PolymarketHttpError(PolymarketInfrastructureError):
 
 class PolymarketPayloadError(PolymarketInfrastructureError):
     """Raised when a public Polymarket response is malformed or inconsistent."""
+
+
+class PolymarketSubscriptionError(PolymarketInfrastructureError):
+    """Raised when a market-data subscription request is invalid."""
+
+
+class PolymarketWebSocketError(PolymarketInfrastructureError):
+    """Raised when the public market WebSocket cannot be established."""

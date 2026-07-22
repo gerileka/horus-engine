@@ -10,9 +10,10 @@ from horus_engine.domain import (
     Price,
     Quantity,
     Side,
+    TickSize,
 )
 
-from .errors import InvalidEventText, InvalidEventTimestamp
+from .errors import InvalidEventText, InvalidEventTimestamp, InvalidTickSizeChange
 from .models import (
     ClientOrderId,
     ExchangeOrderId,
@@ -81,6 +82,23 @@ class TradeObserved:
 
 
 @dataclass(frozen=True)
+class TickSizeChanged:
+    """An observed change to one outcome token's minimum price increment."""
+
+    market_id: MarketId
+    token_id: TokenId
+    old_tick_size: TickSize
+    new_tick_size: TickSize
+    observed_at: datetime
+
+    def __post_init__(self) -> None:
+        """Require an actual change observed at a timezone-aware timestamp."""
+        _validate_aware_timestamp(self.observed_at)
+        if self.old_tick_size == self.new_tick_size:
+            raise InvalidTickSizeChange("old and new tick sizes must differ")
+
+
+@dataclass(frozen=True)
 class MarketDataDisconnected:
     """Market-data transport became unavailable, optionally with a reason."""
 
@@ -109,6 +127,7 @@ MarketDataEvent: TypeAlias = (
     BookSnapshotReceived
     | PriceLevelChanged
     | TradeObserved
+    | TickSizeChanged
     | MarketDataDisconnected
     | MarketDataReconnected
 )
