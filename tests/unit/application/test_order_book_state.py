@@ -348,6 +348,31 @@ def test_disconnect_and_reconnect_retain_book_and_require_snapshot() -> None:
     assert state.apply(_snapshot(3)).status is LocalBookStatus.SYNCHRONIZED
 
 
+def test_require_snapshot_retains_diagnostics_and_rejects_blank_reasons() -> None:
+    """Orchestration can mark a retained book stale without inventing a timestamp."""
+    state = _state()
+    _synchronize(state)
+    synchronized = state.view
+    stale = state.require_snapshot(" stream ended ")
+    assert stale.status is LocalBookStatus.STALE
+    assert stale.status_reason == "stream ended"
+    assert stale.book == synchronized.book
+    assert stale.tick_size == synchronized.tick_size
+    assert stale.last_observed_at == synchronized.last_observed_at
+    with pytest.raises(ValueError, match="non-blank"):
+        state.require_snapshot(" ")
+
+
+def test_require_snapshot_keeps_invalid_status() -> None:
+    """An invalid observed book remains invalid when resynchronization is needed."""
+    state = _state()
+    _synchronize(state)
+    state.apply(_change(Side.BUY, "0.70", "1", 1))
+    view = state.require_snapshot("operator intervention")
+    assert view.status is LocalBookStatus.INVALID
+    assert view.status_reason == "operator intervention"
+
+
 def test_ordering_accepts_equal_timestamps_and_rejects_earlier_events_atomically() -> (
     None
 ):

@@ -59,3 +59,19 @@ class TickSizeStateMismatch(LocalOrderBookStateError):
 
 class InvalidLocalOrderBook(LocalOrderBookStateError):
     """Raised when a candidate local book is unsafe to synchronize."""
+
+
+class MarketDataSessionError(RuntimeError):
+    """Base exception for an application market-data session failure."""
+
+
+class MarketDataSessionAlreadyStarted(MarketDataSessionError):
+    """Raised when a single-use market-data session is started more than once."""
+
+
+class MarketDataBootstrapError(MarketDataSessionError):
+    """Raised when a stream cannot safely establish its initial book snapshot."""
+
+
+class MarketDataSynchronizationLost(MarketDataSessionError):
+    """Raised when an applied stream can no longer safely reconstruct its book."""
