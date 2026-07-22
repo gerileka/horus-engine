@@ -8,13 +8,16 @@ Live trading is disabled by default.
 Horus Engine models exchange-independent orders, immutable order-book
 snapshots, and application-level exchange contracts. It can retrieve and
 normalize public Polymarket market metadata through the read-only Gamma API,
-retrieve public CLOB order-book snapshots, and stream public CLOB order-book
-and trade data into exchange-independent application events without passing raw
-venue payloads into the application or domain layers.
+retrieve public CLOB order-book snapshots, stream public CLOB order-book and
+trade data into exchange-independent application events, and reconstruct one
+local outcome-token order book from those normalized events. The reconstruction
+detects stale and crossed state and requires safe resynchronization with an
+authoritative snapshot.
 
-It cannot maintain a continuously reconstructed local order book, automatically
-reconnect, authenticate, submit orders, cancel orders, or trade. Live trading
-remains unavailable.
+It cannot orchestrate REST snapshot plus WebSocket startup, reconnect
+automatically, persist market data, calculate fair value, generate quotes,
+authenticate, submit orders, cancel orders, or trade. Live trading remains
+unavailable.
 
 ## Public Polymarket catalog
 
@@ -82,6 +85,32 @@ async for event in stream.stream_market_data(
 This is a single, read-only connection lifecycle. It has no authentication,
 order management, or trading API; it does not reconstruct a mutable local book
 and does not automatically reconnect.
+
+## Local order-book reconstruction
+
+`LocalOrderBookState` is an application-layer state machine for exactly one
+market and outcome token. Apply a normalized authoritative snapshot before
+applying price-level updates:
+
+```python
+from horus_engine.application import LocalOrderBookState, MarketId, TokenId
+from horus_engine.domain import TickSize
+
+state = LocalOrderBookState(
+    MarketId("condition-id"), TokenId("outcome-token-id"), TickSize("0.01")
+)
+
+# Apply BookSnapshotReceived, PriceLevelChanged, TickSizeChanged, or connection
+# events from application-level adapters. Every call returns an immutable view.
+view = state.apply(snapshot_event)
+```
+
+The state machine retains immutable observed books for diagnostics. A transport
+disconnection, reconnection, or tick-size change makes the state stale; a
+crossed level-update result is retained but marked invalid. Neither condition
+accepts more incremental updates: only a valid authoritative snapshot restores
+synchronization. It has no network calls, startup orchestration, reconnection
+loop, persistence, strategy, authentication, execution, or trading behavior.
 
 ## Local setup
 

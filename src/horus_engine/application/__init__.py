@@ -6,10 +6,16 @@ from .errors import (
     InvalidEventText,
     InvalidEventTimestamp,
     InvalidExchangeOrderId,
+    InvalidLocalOrderBook,
     InvalidMarket,
     InvalidMarketId,
     InvalidTickSizeChange,
     InvalidTokenId,
+    LocalOrderBookStateError,
+    MarketDataIdentityMismatch,
+    OutOfOrderMarketDataEvent,
+    SnapshotRequired,
+    TickSizeStateMismatch,
 )
 from .events import (
     BookSnapshotReceived,
@@ -41,6 +47,7 @@ from .models import (
     MarketStatus,
     TokenId,
 )
+from .order_book_state import LocalBookStatus, LocalOrderBookState, LocalOrderBookView
 
 __all__ = [
     "ApplicationContractError",
@@ -54,12 +61,14 @@ __all__ = [
     "InvalidExchangeOrderId",
     "InvalidMarket",
     "InvalidMarketId",
+    "InvalidLocalOrderBook",
     "InvalidTickSizeChange",
     "InvalidTokenId",
     "Market",
     "MarketCatalogGateway",
     "MarketDataDisconnected",
     "MarketDataEvent",
+    "MarketDataIdentityMismatch",
     "MarketDataGateway",
     "MarketDataStreamGateway",
     "MarketDataReconnected",
@@ -72,8 +81,15 @@ __all__ = [
     "OrderFilled",
     "OrderPartiallyFilled",
     "OrderRejected",
+    "OutOfOrderMarketDataEvent",
     "PriceLevelChanged",
+    "LocalBookStatus",
+    "LocalOrderBookState",
+    "LocalOrderBookStateError",
+    "LocalOrderBookView",
+    "SnapshotRequired",
     "TickSizeChanged",
+    "TickSizeStateMismatch",
     "TokenId",
     "TradeObserved",
 ]

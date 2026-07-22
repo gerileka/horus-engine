@@ -80,6 +80,43 @@ snapshot does not imply streaming, and streaming does not imply a locally
 reconstructed order book. There is no background polling, authentication, order
 management, or live-trading lifecycle in either adapter.
 
+## Local order-book reconstruction
+
+`LocalOrderBookState` belongs in the application layer because it consumes only
+the normalized `MarketDataEvent` contract and exchange-neutral domain values.
+It does not know about Polymarket payloads, HTTP, WebSockets, or another venue.
+Conversely, the domain `OrderBook` remains an immutable observed snapshot; the
+application state machine privately reconstructs fresh immutable snapshots from
+mutable aggregate level mappings and never exposes those mappings.
+
+Each instance has one fixed `MarketId` and `TokenId` and starts in
+`AWAITING_SNAPSHOT`. A valid `BookSnapshotReceived` atomically replaces all
+levels and enters `SYNCHRONIZED`. Only then can a `PriceLevelChanged` replace a
+side's aggregate quantity at one price; zero removes that price. Empty,
+one-sided, and locked books remain valid synchronized observations. A valid
+update that makes the book crossed is retained for diagnosis but moves the
+machine to `INVALID`; crossed snapshots are rejected before replacing the
+previous state.
+
+`MarketDataDisconnected`, `MarketDataReconnected`, and a compatible
+`TickSizeChanged` make the machine `STALE` while retaining its last immutable
+book for diagnostics. A tick-size change records the new tick without rounding
+or rewriting existing levels. `STALE` and `INVALID` never recover from an
+incremental update: a new tick-aligned, uncrossed authoritative snapshot is
+required. All rejected validation failures preserve the complete prior state;
+the committed crossed-update observation is the intentional exception.
+
+The machine rejects market or token identity mismatches and timestamps strictly
+earlier than the last successfully applied event. Equal timestamps are accepted
+in arrival order. This timestamp rule is a safety check, not proof that no
+exchange message was missed; it intentionally provides neither buffering nor
+sequence-number inference. Trades are explicit no-ops for book state.
+
+No network or reconnection logic lives in this state machine. A caller decides
+how and when to obtain a REST snapshot, consume a stream, reconnect transport,
+and apply normalized events. The state machine has no persistence, background
+tasks, strategy, execution, authentication, or trading responsibility.
+
 ## Domain model
 
 The domain layer uses immutable, Decimal-backed financial value objects.
