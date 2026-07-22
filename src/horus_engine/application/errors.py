@@ -21,6 +21,14 @@ class InvalidClientOrderId(ApplicationContractError):
     """Raised when a client-generated order identifier is invalid."""
 
 
+class InvalidMarketDataSessionId(ApplicationContractError):
+    """Raised when a recorded market-data session identifier is invalid."""
+
+
+class InvalidMarketDataJournal(ApplicationContractError):
+    """Raised when market-data journal metadata is internally inconsistent."""
+
+
 class InvalidMarket(ApplicationContractError):
     """Raised when exchange-neutral market metadata is invalid."""
 

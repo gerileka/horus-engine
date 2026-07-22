@@ -27,6 +27,43 @@ domain code. For these adapters, the Polymarket condition ID is the application
 `MarketId`; Gamma's internal market ID and other venue metadata are
 intentionally not exposed.
 
+## Market-data journal persistence
+
+`MarketDataJournalGateway` is an application-layer protocol because recording
+one `MarketDataSessionUpdate` needs only normalized application events, domain
+value objects, and the immutable post-event local-state metadata. The protocol
+is append-only: it creates session metadata, appends arrival-sequenced events,
+and records terminal metadata, but exposes no mutation or deletion of event
+history. `SQLiteMarketDataJournal` implements that contract in infrastructure,
+so SQLite, SQL, and `aiosqlite` never leak into application code.
+
+Each session has a caller-supplied `MarketDataSessionId`, fixed market and token
+identities, initial tick size, and start time. The adapter records each event's
+strictly increasing arrival sequence separately from the exchange observation
+timestamp. Arrival order is the order in which this process consumed the
+normalized stream; it is deliberately never inferred from venue timestamps.
+
+The journal stores complete authoritative `BookSnapshotReceived` books plus
+subsequent `PriceLevelChanged` deltas. It also stores trades, tick-size changes,
+and connection events, along with the post-event status, tick size, last
+observed timestamp, reason, and whether the local book changed. It does not
+persist a partial `LocalOrderBookView` as an `OrderBook`: a future replay
+capability can reconstruct books from authoritative snapshots and deltas.
+Automatic recording and replay are deliberately deferred; this repository does
+not yet wire a journal into `MarketDataSession`.
+
+SQLite stores every Decimal-backed price, quantity, and tick size as exact text,
+never `REAL`, and reconstructs it through the existing domain constructors.
+Every timestamp is validated as timezone-aware, normalized to UTC, and stored
+as microsecond-precise ISO 8601 text. Raw Polymarket payloads, JSON messages,
+Python repr values, credentials, signatures, and private keys are never stored.
+
+Schema initialization uses `PRAGMA user_version` and creates version one
+atomically. Public journal writes use savepoints so starting, appending, and
+finishing are atomic while preserving unrelated caller-owned connection work.
+The adapter enables foreign-key enforcement during initialization, never opens
+or closes the supplied connection, and does not commit a caller's transaction.
+
 The catalog adapter is read-only and retrieves public market metadata only. Its
 status mapping is conservative: a closed Gamma market is `CLOSED`, an active
 market accepting orders is `ACTIVE`, and every other state is `SUSPENDED`. It

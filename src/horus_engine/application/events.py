@@ -21,6 +21,9 @@ from .models import (
     TokenId,
     _validate_nonblank_text,
 )
+from .models import (
+    _validate_aware_timestamp as _validate_model_aware_timestamp,
+)
 
 
 def _validate_aware_timestamp(timestamp: datetime) -> None:
@@ -29,10 +32,7 @@ def _validate_aware_timestamp(timestamp: datetime) -> None:
     Adapters should normalize timestamps to UTC where practical, while event
     contracts preserve any valid timezone-aware ``datetime`` they receive.
     """
-    if not isinstance(timestamp, datetime) or (
-        timestamp.tzinfo is None or timestamp.utcoffset() is None
-    ):
-        raise InvalidEventTimestamp("event timestamps must be timezone-aware")
+    _validate_model_aware_timestamp(timestamp, InvalidEventTimestamp)
 
 
 @dataclass(frozen=True)
