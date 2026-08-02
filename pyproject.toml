@@ -10,6 +10,9 @@ dependencies = [
     "websockets>=16.1.1,<17",
 ]
 
+[project.scripts]
+horus = "horus_engine.cli.main:main"
+
 [dependency-groups]
 dev = [
     "coverage[toml]>=7.6.0",

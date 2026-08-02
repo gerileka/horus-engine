@@ -168,14 +168,44 @@ def test_parser_maps_ordered_price_changes_and_zero_deletions() -> None:
     [
         {"asset_id": _YES_TOKEN.value, "side": "OTHER", "price": "0.5", "size": "1"},
         {"asset_id": _YES_TOKEN.value, "side": "BUY", "price": "0.5", "size": "-1"},
-        {"asset_id": "other-token", "side": "BUY", "price": "0.5", "size": "1"},
         {"asset_id": _YES_TOKEN.value, "side": "BUY", "size": "1"},
+        {"asset_id": " ", "side": "BUY", "price": "0.5", "size": "1"},
+        {"asset_id": "\x00", "side": "BUY", "price": "0.5", "size": "1"},
     ],
 )
 def test_parser_rejects_invalid_price_changes(change: dict[str, object]) -> None:
     """Validate every nested asset and every normalized change field."""
     with pytest.raises(PolymarketPayloadError):
         _parse(_event("price_change", price_changes=[change]))
+
+
+def test_parser_ignores_unsubscribed_entries_in_market_price_change_batches() -> None:
+    """Keep a selected-token stream usable when a venue batch includes its peer."""
+    events = parse_market_data_message(
+        json.dumps(
+            _event(
+                "price_change",
+                price_changes=[
+                    {
+                        "asset_id": "other-token",
+                        "side": "SELL",
+                        "price": "0.51",
+                        "size": "4",
+                    },
+                    {
+                        "asset_id": _YES_TOKEN.value,
+                        "side": "BUY",
+                        "price": "0.5",
+                        "size": "2",
+                    },
+                ],
+            )
+        ),
+        _MARKET_ID,
+        (_YES_TOKEN,),
+    )
+    assert len(events) == 1
+    assert cast(PriceLevelChanged, events[0]).token_id == _YES_TOKEN
 
 
 @pytest.mark.parametrize("side", ["BUY", "SELL"])
