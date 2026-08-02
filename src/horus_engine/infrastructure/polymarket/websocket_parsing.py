@@ -120,7 +120,9 @@ def _price_change_events(
     changes = _object_list(payload, "price_changes")
     events: list[PriceLevelChanged] = []
     for change in changes:
-        token_id = _token_id(change, requested_token_ids)
+        token_id = _subscribed_price_change_token_id(change, requested_token_ids)
+        if token_id is None:
+            continue
         try:
             side = Side(_required_text(change, "side", "price change"))
             price = Price(_decimal_field(change, "price", "price change"))
@@ -135,6 +137,25 @@ def _price_change_events(
             PriceLevelChanged(market_id, token_id, side, price, quantity, timestamp)
         )
     return tuple(events)
+
+
+def _subscribed_price_change_token_id(
+    payload: WebSocketPayload, requested_token_ids: tuple[TokenId, ...]
+) -> TokenId | None:
+    """Return a subscribed price-change token or ignore another batched outcome.
+
+    Polymarket can include every outcome's level change in one market-level
+    ``price_change`` frame even when the subscription requests one token. The
+    outer message identity remains strict, while unrelated well-formed entries
+    are not observations for this selected-token stream.
+    """
+    try:
+        token_id = TokenId(_required_text(payload, "asset_id", "price change"))
+    except ValueError as error:
+        raise PolymarketPayloadError(
+            "market WebSocket price change has invalid asset_id"
+        ) from error
+    return token_id if token_id in requested_token_ids else None
 
 
 def _tick_size_event(

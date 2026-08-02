@@ -14,10 +14,31 @@ local outcome-token order book from those normalized events. The reconstruction
 detects stale and crossed state and requires safe resynchronization with an
 authoritative snapshot.
 
-It cannot orchestrate REST snapshot plus WebSocket startup, reconnect
-automatically, replay stored data into a reconstructed book, run a collector
-CLI, calculate fair value, generate quotes, authenticate, submit orders, cancel
-orders, or trade. Live trading remains unavailable.
+It cannot reconnect automatically, replay stored data into a reconstructed
+book, calculate fair value, generate quotes, authenticate, submit orders,
+cancel orders, or trade. Live trading remains unavailable.
+
+## Collect public market data
+
+Record one selected Polymarket outcome token to a local SQLite journal:
+
+```bash
+uv run horus collect \
+  --market-id "<condition-id>" \
+  --outcome yes \
+  --database data/horus.db \
+  --duration-seconds 300
+```
+
+`market-id` is the Polymarket condition ID. The selected `yes` or `no` outcome
+determines which normalized token stream is recorded. The command resolves
+public, unauthenticated market metadata, then stores normalized events in
+SQLite. Reaching the requested duration is successful; Ctrl+C attempts safe
+journal finalization before the process exits.
+
+The collector cannot reconnect automatically, records one token per run, and
+does not replay data, calculate fair value, simulate fills, authenticate,
+submit or cancel orders, or trade.
 
 ## SQLite market-data journal
 
@@ -42,9 +63,8 @@ async with aiosqlite.connect("horus.db") as connection:
 
 The journal records normalized snapshots, level changes, trades, tick-size
 changes, and connection lifecycle events in arrival sequence. It does not store
-raw venue payloads, credentials, or any trading capability. It still cannot
-automatically record a running session, replay a journal into a reconstructed
-book, or run a collector CLI.
+raw venue payloads, credentials, or any trading capability. It does not replay
+a journal into a reconstructed book.
 
 ## Public Polymarket catalog
 

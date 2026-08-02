@@ -27,6 +27,32 @@ domain code. For these adapters, the Polymarket condition ID is the application
 `MarketId`; Gamma's internal market ID and other venue metadata are
 intentionally not exposed.
 
+## CLI composition root
+
+`horus collect` is the outer composition root for one public market-data
+recording. It owns a single `httpx.AsyncClient` and a single `aiosqlite`
+connection, closes both through async context managers, and leaves adapters
+responsible only for their focused protocols. The command resolves normalized
+market metadata before it opens a SQLite journal or WebSocket stream. It accepts
+only an `ACTIVE` market, maps the requested YES or NO outcome to the catalog's
+normalized token ID, and constructs one `MarketDataSession` with that token and
+the catalog tick size.
+
+After initializing `SQLiteMarketDataJournal`, the CLI creates a
+`MarketDataSessionRecorder` with a caller-generated session ID and a UTC clock.
+When a duration is supplied, `asyncio.timeout` cancels the recorder and the
+recorder finalizes its journal evidence before the CLI reads the persisted
+session for its successful duration summary. Ctrl+C remains cancellation: the
+synchronous boundary returns exit code 130 after recorder cancellation handling
+runs where possible.
+
+Progress and concise failures go to stderr. Stdout is reserved for one final
+JSON summary, making the command suitable for simple automation without
+printing raw exchange payloads or event-by-event output. This layer contains no
+strategy logic: it only composes read-only metadata, public streaming, local
+state reconstruction, and append-only persistence. It has no replay,
+authentication, execution, or trading capability.
+
 ## Market-data journal persistence
 
 `MarketDataJournalGateway` is an application-layer protocol because recording
