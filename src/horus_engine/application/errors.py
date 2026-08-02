@@ -83,3 +83,23 @@ class MarketDataBootstrapError(MarketDataSessionError):
 
 class MarketDataSynchronizationLost(MarketDataSessionError):
     """Raised when an applied stream can no longer safely reconstruct its book."""
+
+
+class InvalidMarketDataRecording(ApplicationContractError):
+    """Raised when market-data recording result metadata is inconsistent."""
+
+
+class MarketDataRecordingError(RuntimeError):
+    """Raised when recording a market-data session cannot complete."""
+
+
+class MarketDataRecorderAlreadyStarted(MarketDataRecordingError):
+    """Raised when a single-use market-data recorder runs more than once."""
+
+
+class MarketDataRecordingClockError(MarketDataRecordingError):
+    """Raised when a recorder clock returns an invalid lifecycle timestamp."""
+
+
+class MarketDataRecordingFinalizationError(MarketDataRecordingError):
+    """Raised when an already-started journal session cannot be finalized."""
