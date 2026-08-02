@@ -119,3 +119,11 @@ class MarketDataReplaySequenceError(MarketDataReplayError):
 
 class MarketDataReplayIntegrityError(MarketDataReplayError):
     """Raised when recorded metadata disagrees with reconstructed state."""
+
+
+class ConservativeFillSimulationError(RuntimeError):
+    """Base exception for deterministic conservative fill simulation failures."""
+
+
+class ConservativeFillIntegrityError(ConservativeFillSimulationError):
+    """Raised when shadow decisions cannot describe simulated order state."""
