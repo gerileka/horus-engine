@@ -47,6 +47,11 @@ from .events import (
     TickSizeChanged,
     TradeObserved,
 )
+from .fair_value import (
+    FairValueModel,
+    MidpointFairValueModel,
+    TopLevelMicropriceFairValueModel,
+)
 from .gateways import (
     ExecutionGateway,
     MarketCatalogGateway,
@@ -77,6 +82,15 @@ from .models import (
     TokenId,
 )
 from .order_book_state import LocalBookStatus, LocalOrderBookState, LocalOrderBookView
+from .shadow_quotes import (
+    ShadowQuote,
+    ShadowQuoteAction,
+    ShadowQuoteAnalysis,
+    ShadowQuoteAnalyzer,
+    ShadowQuoteConfig,
+    ShadowQuoteDecision,
+    ShadowQuoteSuppressionReason,
+)
 
 __all__ = [
     "ApplicationContractError",
@@ -84,6 +98,7 @@ __all__ = [
     "ClientOrderId",
     "ExchangeOrderId",
     "ExecutionGateway",
+    "FairValueModel",
     "InvalidClientOrderId",
     "InvalidEventText",
     "InvalidEventTimestamp",
@@ -128,6 +143,7 @@ __all__ = [
     "MarketDataReconnected",
     "MarketId",
     "MarketStatus",
+    "MidpointFairValueModel",
     "OrderAccepted",
     "OrderBookSnapshotGateway",
     "OrderCancelled",
@@ -144,8 +160,16 @@ __all__ = [
     "LocalOrderBookStateError",
     "LocalOrderBookView",
     "SnapshotRequired",
+    "ShadowQuote",
+    "ShadowQuoteAction",
+    "ShadowQuoteAnalysis",
+    "ShadowQuoteAnalyzer",
+    "ShadowQuoteConfig",
+    "ShadowQuoteDecision",
+    "ShadowQuoteSuppressionReason",
     "TickSizeChanged",
     "TickSizeStateMismatch",
     "TokenId",
+    "TopLevelMicropriceFairValueModel",
     "TradeObserved",
 ]

@@ -6,7 +6,8 @@ Live trading is disabled by default.
 ## Development status
 
 Horus Engine models exchange-independent orders, immutable order-book
-snapshots, and application-level exchange contracts. It can retrieve and
+snapshots, application-level exchange contracts, and recorded-session replay.
+It can retrieve and
 normalize public Polymarket market metadata through the read-only Gamma API,
 retrieve public CLOB order-book snapshots, stream public CLOB order-book and
 trade data into exchange-independent application events, and reconstruct one
@@ -14,9 +15,8 @@ local outcome-token order book from those normalized events. The reconstruction
 detects stale and crossed state and requires safe resynchronization with an
 authoritative snapshot.
 
-It cannot reconnect automatically, replay stored data into a reconstructed
-book, calculate fair value, generate quotes, authenticate, submit orders,
-cancel orders, or trade. Live trading remains unavailable.
+It cannot reconnect automatically, authenticate, submit orders, cancel orders,
+or trade. Live trading remains unavailable.
 
 ## Collect public market data
 
@@ -37,8 +37,35 @@ SQLite. Reaching the requested duration is successful; Ctrl+C attempts safe
 journal finalization before the process exits.
 
 The collector cannot reconnect automatically, records one token per run, and
-does not replay data, calculate fair value, simulate fills, authenticate,
-submit or cancel orders, or trade.
+does not simulate fills, authenticate, submit or cancel orders, or trade.
+
+## Analyze recorded shadow quotes
+
+Evaluate a fixed, hypothetical two-sided maker quote over one already recorded
+session:
+
+```bash
+uv run horus shadow \
+  --database data/horus.db \
+  --session-id "<recorded-session-id>" \
+  --decisions-output data/shadow-decisions.jsonl
+```
+
+`shadow` opens an existing journal, deterministically replays its recorded
+events, and emits one compact JSON summary to stdout. It reports total,
+quoteable, and suppressed states; a Decimal quoteable ratio; and `place`,
+`hold`, `replace`, `cancel`, and inactive `none` action counts. A desired maker
+quote is only valid inside the strict price bounds `0 < bid < ask < 1`.
+
+The default model is `microprice`, with a two-tick half spread and quantity 10.
+`midpoint` uses the best bid and ask; `microprice` uses only their displayed
+quantities as a simple top-of-book imbalance estimate, not a proven edge. Pass
+`--decisions-output <path>` to write detailed deterministic JSONL records with
+stable suppression reasons, fair values, desired prices, and quantities.
+
+The command does not initialize or alter the journal, submit orders, simulate
+fills, estimate queue position, track inventory, calculate fees, markouts, or
+P&L, or trade.
 
 ## SQLite market-data journal
 
@@ -66,11 +93,14 @@ changes, and connection lifecycle events in arrival sequence. It does not store
 raw venue payloads, credentials, or any trading capability. `MarketDataSessionReplayer`
 can load one recorded session, replay its normalized events deterministically,
 reconstruct every post-event local-book state, verify recorded metadata, and
-detect sequence gaps or internally inconsistent history.
+detect sequence gaps or internally inconsistent history. A read-only
+shadow-quote experiment can calculate midpoint or top-level microprice fair
+values from synchronized, strictly two-sided books, then track hypothetical
+maker-quote lifecycle decisions over that reconstructed history.
 
-Replay is intentionally application-only for now: there is no replay CLI,
-midpoint or microprice history, shadow quote generation, fill simulation,
-markouts or P&L, authentication, execution, or trading.
+Replay is intentionally empirical: it has no fill simulation, queue-position
+estimation, inventory, fees, markouts, P&L, authentication, execution, or
+trading.
 
 ## Public Polymarket catalog
 

@@ -14,6 +14,16 @@ from .collect import (
     collect,
     parse_collect_options,
 )
+from .shadow import (
+    _DEFAULT_DEPENDENCIES as _DEFAULT_SHADOW_DEPENDENCIES,
+)
+from .shadow import (
+    ShadowOperationalError,
+    _ShadowDependencies,
+    add_shadow_parser,
+    parse_shadow_options,
+    shadow,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="horus")
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_collect_parser(subparsers)
+    add_shadow_parser(subparsers)
     return parser
 
 
@@ -28,24 +39,37 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     dependencies: _CollectionDependencies = _DEFAULT_DEPENDENCIES,
+    shadow_dependencies: _ShadowDependencies = _DEFAULT_SHADOW_DEPENDENCIES,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
 ) -> int:
-    """Run the collector and convert ordinary failures into stable exit codes."""
+    """Run one CLI command and convert ordinary failures into stable exit codes."""
     parser = build_parser()
-    options = parse_collect_options(
-        parser, None if argv is None else list(argv), dependencies.session_id_factory
-    )
+    arguments = None if argv is None else list(argv)
+    namespace = parser.parse_args(arguments)
     try:
-        summary = asyncio.run(collect(options, dependencies, stderr))
+        if namespace.command == "collect":
+            collect_options = parse_collect_options(
+                parser, arguments, dependencies.session_id_factory
+            )
+            summary_json = asyncio.run(
+                collect(collect_options, dependencies, stderr)
+            ).as_json()
+        else:
+            shadow_options = parse_shadow_options(parser, arguments)
+            summary_json = asyncio.run(
+                shadow(shadow_options, shadow_dependencies, stderr)
+            ).as_json()
     except KeyboardInterrupt:
-        print("collection interrupted", file=stderr)
+        interrupted = "collection" if namespace.command == "collect" else "shadow"
+        print(f"{interrupted} interrupted", file=stderr)
         return 130
-    except CollectionOperationalError as error:
+    except (CollectionOperationalError, ShadowOperationalError) as error:
         print(f"error: {error}", file=stderr)
         return 1
     except Exception:
-        print("error: collection failed", file=stderr)
+        failed = "collection" if namespace.command == "collect" else "shadow"
+        print(f"error: {failed} failed", file=stderr)
         return 1
-    print(summary.as_json(), file=stdout)
+    print(summary_json, file=stdout)
     return 0
