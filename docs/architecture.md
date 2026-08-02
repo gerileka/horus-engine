@@ -75,8 +75,23 @@ and connection events, along with the post-event status, tick size, last
 observed timestamp, reason, and whether the local book changed. It does not
 persist a partial `LocalOrderBookView` as an `OrderBook`: a future replay
 capability can reconstruct books from authoritative snapshots and deltas.
-Automatic recording and replay are deliberately deferred; this repository does
-not yet wire a journal into `MarketDataSession`.
+`MarketDataSessionReplayer` is an application-layer reader for one recorded
+session. It replays normalized events in their recorded arrival sequence, not
+their exchange timestamps, by reusing `LocalOrderBookState`. Authoritative
+snapshots replace the complete reconstructed book; later level changes use the
+same aggregate-size semantics as live reconstruction. After every event the
+replayer verifies recorded status, tick size, observed timestamp, reason, and
+`book_changed` against its own reconstruction. It rejects sequence gaps and
+inconsistent history rather than repairing records or silently sorting them.
+
+Replay distinguishes the state after the final normalized event from terminal
+session state. A finished session usually has the same final view, but a
+lifecycle-only transition from `AWAITING_SNAPSHOT` or `SYNCHRONIZED` to `STALE`
+is accepted when stream exhaustion had no normalized event. That transition
+retains the book, tick size, and last exchange-observed timestamp. Replay is
+currently an in-memory application service: it has no CLI command, database
+connection management, strategy, quoting, fill simulation, authentication, or
+trading behavior.
 
 SQLite stores every Decimal-backed price, quantity, and tick size as exact text,
 never `REAL`, and reconstructs it through the existing domain constructors.

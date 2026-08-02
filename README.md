@@ -63,8 +63,14 @@ async with aiosqlite.connect("horus.db") as connection:
 
 The journal records normalized snapshots, level changes, trades, tick-size
 changes, and connection lifecycle events in arrival sequence. It does not store
-raw venue payloads, credentials, or any trading capability. It does not replay
-a journal into a reconstructed book.
+raw venue payloads, credentials, or any trading capability. `MarketDataSessionReplayer`
+can load one recorded session, replay its normalized events deterministically,
+reconstruct every post-event local-book state, verify recorded metadata, and
+detect sequence gaps or internally inconsistent history.
+
+Replay is intentionally application-only for now: there is no replay CLI,
+midpoint or microprice history, shadow quote generation, fill simulation,
+markouts or P&L, authentication, execution, or trading.
 
 ## Public Polymarket catalog
 
