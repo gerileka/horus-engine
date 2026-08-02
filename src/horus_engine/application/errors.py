@@ -103,3 +103,19 @@ class MarketDataRecordingClockError(MarketDataRecordingError):
 
 class MarketDataRecordingFinalizationError(MarketDataRecordingError):
     """Raised when an already-started journal session cannot be finalized."""
+
+
+class MarketDataReplayError(RuntimeError):
+    """Base exception for deterministic market-data replay failures."""
+
+
+class MarketDataReplaySessionNotFound(MarketDataReplayError):
+    """Raised when replay is requested for a session absent from the journal."""
+
+
+class MarketDataReplaySequenceError(MarketDataReplayError):
+    """Raised when journal updates do not form an arrival sequence."""
+
+
+class MarketDataReplayIntegrityError(MarketDataReplayError):
+    """Raised when recorded metadata disagrees with reconstructed state."""

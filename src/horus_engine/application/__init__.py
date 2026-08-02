@@ -21,6 +21,10 @@ from .errors import (
     MarketDataRecordingClockError,
     MarketDataRecordingError,
     MarketDataRecordingFinalizationError,
+    MarketDataReplayError,
+    MarketDataReplayIntegrityError,
+    MarketDataReplaySequenceError,
+    MarketDataReplaySessionNotFound,
     MarketDataSessionAlreadyStarted,
     MarketDataSessionError,
     MarketDataSynchronizationLost,
@@ -58,6 +62,11 @@ from .market_data_journal import (
     PersistedMarketDataUpdate,
 )
 from .market_data_recording import MarketDataRecordingResult, MarketDataSessionRecorder
+from .market_data_replay import (
+    MarketDataReplayResult,
+    MarketDataReplayStep,
+    MarketDataSessionReplayer,
+)
 from .market_data_session import MarketDataSession, MarketDataSessionUpdate
 from .models import (
     ClientOrderId,
@@ -104,6 +113,13 @@ __all__ = [
     "MarketDataRecordingError",
     "MarketDataRecordingFinalizationError",
     "MarketDataRecordingResult",
+    "MarketDataReplayError",
+    "MarketDataReplayIntegrityError",
+    "MarketDataReplayResult",
+    "MarketDataReplaySequenceError",
+    "MarketDataReplaySessionNotFound",
+    "MarketDataReplayStep",
+    "MarketDataSessionReplayer",
     "MarketDataSynchronizationLost",
     "MarketDataGateway",
     "MarketDataJournalGateway",
