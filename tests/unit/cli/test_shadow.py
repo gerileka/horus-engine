@@ -332,6 +332,8 @@ def test_shadow_replays_read_only_and_main_emits_summary(
             "desired_bid": "0.49",
             "desired_ask": "0.51",
             "quantity": "2",
+            "best_bid": "0.4",
+            "best_ask": "0.6",
         }
     ]
     assert not list(tmp_path.glob(".decisions.jsonl.*.tmp"))

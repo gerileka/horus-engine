@@ -197,6 +197,39 @@ tasks, strategy, execution, authentication, or trading responsibility.
 
 ## Domain model
 
+## Conservative historical maker-fill simulation
+
+`ConservativeFillSimulator` is an application service over immutable replay
+and shadow-quote analysis models. It has no SQLite, venue, HTTP, WebSocket,
+authentication, execution, clock, or persistence dependency. Its empirical
+goal is deliberately narrower than profitability: given public recorded data,
+identify only hypothetical maker fills with strong evidence.
+
+For every replay step, pre-existing simulated orders first process the current
+event, conservative queue bounds are then updated, and only afterwards is the
+shadow lifecycle action applied. Consequently a `PLACE` or `REPLACE` cannot
+fill from the same event that created it. Public `TradeObserved` records are
+the sole fill evidence; aggregate book decreases, cancellations, and vanished
+liquidity never infer a fill.
+
+Each order side joins the back of visible same-price quantity. An exact-price
+trade with the opposite aggressor first consumes its queue-ahead estimate, then
+can partially or fully fill only its excess quantity at the simulated quote
+price. A matching trade beyond the quote price is treated as strong evidence
+that every better-priced resting simulated contract filled, so it fills the
+complete remaining side regardless of displayed trade size. Wrong aggressor
+directions never fill an order. Same-price level increases join ahead; decreases
+never reduce queue ahead. An authoritative snapshot can only raise a surviving
+`HOLD` order's queue estimate.
+
+`HOLD` preserves remaining partial state and never replenishes a fully filled
+side. `REPLACE` discards residual state and initializes fresh two-sided queue
+positions from the post-event book; `CANCEL` removes both sides. The resulting
+summary uses Decimal quantities and quote-price notionals for net token
+position and net cash flow. That cash-flow value is not profit or P&L: aggregate
+public order books cannot reveal hidden liquidity, acknowledgements, true queue
+position, fees, rebates, rewards, settlement, or mark-to-market value.
+
 The domain layer uses immutable, Decimal-backed financial value objects.
 `Price` represents a binary-market price, `Quantity` represents a strictly
 positive number of contracts, and `NonNegativeQuantity` represents quantities

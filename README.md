@@ -67,6 +67,36 @@ The command does not initialize or alter the journal, submit orders, simulate
 fills, estimate queue position, track inventory, calculate fees, markouts, or
 P&L, or trade.
 
+## Simulate conservative maker fills
+
+Estimate only strongly evidenced hypothetical maker fills from a recorded
+session and its shadow-quote decisions:
+
+```bash
+uv run horus simulate-fills \
+  --database data/horus.db \
+  --session-id "<recorded-session-id>" \
+  --model microprice \
+  --half-spread-ticks 2 \
+  --quantity 10 \
+  --fills-output data/fills.jsonl
+```
+
+The simulator is intentionally conservative. A new bid or ask joins behind the
+visible quantity at precisely its quote price, becomes active only after the
+recorded event that created it, and is considered filled only by a later public
+`TradeObserved` event. An exact-price trade first consumes queue ahead; a trade
+through a better-priced resting quote fully fills its remaining simulated
+quantity. Book-size reductions, cancellations, and disappearing displayed
+liquidity never create fills, while same-price visible increases make queue
+position more conservative. Filled sides are not automatically replenished.
+
+The compact JSON output reports fill quantities, quote-price notionals, net
+token position, and net cash flow. Net cash flow is **not profit or P&L**: it
+excludes settlement and mark-to-market value, fees, rebates, rewards, gas, and
+capital requirements. `--fills-output` writes atomic JSONL evidence records;
+the command only reads the existing journal and makes no network calls.
+
 ## SQLite market-data journal
 
 Horus Engine can initialize a versioned SQLite market-data journal, record

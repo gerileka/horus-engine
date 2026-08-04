@@ -238,6 +238,18 @@ def _decision_record(decision: ShadowQuoteDecision) -> dict[str, object]:
         "desired_bid": None if quote is None else str(quote.bid.value),
         "desired_ask": None if quote is None else str(quote.ask.value),
         "quantity": None if quote is None else str(quote.quantity.value),
+        "best_bid": (
+            None
+            if decision.replay_step.view.book is None
+            or decision.replay_step.view.book.best_bid is None
+            else str(decision.replay_step.view.book.best_bid.value)
+        ),
+        "best_ask": (
+            None
+            if decision.replay_step.view.book is None
+            or decision.replay_step.view.book.best_ask is None
+            else str(decision.replay_step.view.book.best_ask.value)
+        ),
     }
 
 
