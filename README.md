@@ -20,6 +20,11 @@ or trade. Live trading remains unavailable.
 
 ## Collect public market data
 
+For a network-free, synthetic collect → shadow → fills walkthrough first, see
+the [reproducible offline demo](docs/offline-demo.md). It creates a real SQLite
+journal, checks hand-calculated outcomes in an integration test, and verifies
+repeatable analysis without changing the input journal.
+
 Record one selected Polymarket outcome token to a local SQLite journal:
 
 ```bash
