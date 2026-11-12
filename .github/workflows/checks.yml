@@ -21,3 +21,7 @@ jobs:
           python-version: '3.12'
       - run: make install
       - run: make check
+      - name: Run documented synthetic offline demo
+        run: >-
+          uv run --offline python -m examples.offline_demo
+          --output "$RUNNER_TEMP/horus-offline-demo"
