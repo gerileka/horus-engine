@@ -20,6 +20,10 @@ or trade. Live trading remains unavailable.
 
 ## Collect public market data
 
+For opt-in, short public compatibility recordings with private provenance and
+explicit access blockers, see the [bounded public API smoke procedure](docs/public-api-smoke.md).
+It is separate from normal CI and does not enable trading.
+
 For a network-free, synthetic collect → shadow → fills walkthrough first, see
 the [reproducible offline demo](docs/offline-demo.md). It creates a real SQLite
 journal, checks hand-calculated outcomes in an integration test, and verifies
