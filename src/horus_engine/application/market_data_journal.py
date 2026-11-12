@@ -129,7 +129,23 @@ class PersistedMarketDataUpdate:
             )
 
 
-class MarketDataJournalGateway(Protocol):
+class MarketDataJournalReader(Protocol):
+    """Read side shared by immutable replay and quality assessment."""
+
+    async def get_session(
+        self, session_id: MarketDataSessionId
+    ) -> PersistedMarketDataSession | None:
+        """Return one recorded session without modifying its lifecycle."""
+        ...
+
+    async def list_updates(
+        self, session_id: MarketDataSessionId
+    ) -> tuple[PersistedMarketDataUpdate, ...]:
+        """Return recorded arrival order, without repairing or sorting it."""
+        ...
+
+
+class MarketDataJournalGateway(MarketDataJournalReader, Protocol):
     """Append-only storage for normalized market-data sessions and updates."""
 
     async def initialize(self) -> None:
