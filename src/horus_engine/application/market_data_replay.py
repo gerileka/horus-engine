@@ -10,7 +10,7 @@ from .errors import (
 )
 from .events import MarketDataEvent
 from .market_data_journal import (
-    MarketDataJournalGateway,
+    MarketDataJournalReader,
     MarketDataSessionId,
     PersistedMarketDataSession,
     PersistedMarketDataUpdate,
@@ -59,7 +59,7 @@ class MarketDataReplayResult:
 class MarketDataSessionReplayer:
     """Read and verify one persisted normalized market-data lifecycle."""
 
-    def __init__(self, journal: MarketDataJournalGateway) -> None:
+    def __init__(self, journal: MarketDataJournalReader) -> None:
         """Retain an application-level journal without initializing it."""
         self._journal = journal
 
