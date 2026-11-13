@@ -50,6 +50,9 @@ does not simulate fills, authenticate, submit or cancel orders, or trade.
 
 ## Analyze recorded shadow quotes
 
+For the execution-model audit, hand calculations and quality-gated scenario
+comparison, see [fill-assumption sensitivity](docs/fill-sensitivity.md).
+
 For research use, first run the [session-quality eligibility gate](docs/session-quality.md)
 and honor its exit status before generating strategy outputs. The standalone
 analysis commands below remain exploratory and do not imply quality approval.

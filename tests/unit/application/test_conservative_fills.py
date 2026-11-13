@@ -3,7 +3,7 @@
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -34,6 +34,7 @@ from horus_engine.application import (
     TradeObserved,
 )
 from horus_engine.application.conservative_fills import (
+    FillAssumptions,
     SimulatedMakerOrder,
     SimulatedMakerOrderView,
 )
@@ -643,8 +644,8 @@ def test_private_state_guards_cover_unrepresentable_simulation_inputs() -> None:
     empty = _analysis([])
     empty_result = ConservativeFillAnalysis(empty, (), (), 0, 0, 0)
     assert empty_result.remaining_bid_quantity == Decimal("0")
-    assert ConservativeFillSimulator._raise_to_visible(None, None) is None
-    assert ConservativeFillSimulator._visible_quantity(
+    assert ConservativeFillSimulator()._raise_to_visible(None, None) is None
+    assert ConservativeFillSimulator()._visible_quantity(
         None, Side.BUY, Price("0.4")
     ) == Decimal("0")
     with pytest.raises(ConservativeFillIntegrityError, match="PLACE"):
@@ -683,3 +684,180 @@ def test_private_state_guards_cover_unrepresentable_simulation_inputs() -> None:
         None,
         None,
     )
+
+
+def test_hand_oracle_queue_partial_side_and_through() -> None:
+    """Queue 10, size 5, prints 10/3/2: zero/three/two, never same-event."""
+    book = _book()
+    rows: list[
+        tuple[MarketDataEvent, OrderBook | None, ShadowQuoteAction, ShadowQuote | None]
+    ] = [
+        (
+            BookSnapshotReceived(_MARKET, _TOKEN, book, _TIME),
+            book,
+            ShadowQuoteAction.PLACE,
+            _QUOTE,
+        ),
+        (_trade(Side.BUY, "0.40", "99"), book, ShadowQuoteAction.HOLD, _QUOTE),
+        (_trade(Side.SELL, "0.40", "10"), book, ShadowQuoteAction.HOLD, _QUOTE),
+        (_trade(Side.SELL, "0.40", "3"), book, ShadowQuoteAction.HOLD, _QUOTE),
+        (_trade(Side.SELL, "0.40", "2"), book, ShadowQuoteAction.HOLD, _QUOTE),
+    ]
+    shadow = _analysis(rows)
+    baseline = ConservativeFillSimulator().simulate(shadow)
+    assert [
+        sum((f.fill_quantity.value for f in s.fills), Decimal(0))
+        for s in baseline.steps
+    ] == [0, 0, 0, 3, 2]
+    doubled = ConservativeFillSimulator(FillAssumptions(Decimal("2"))).simulate(shadow)
+    assert doubled.buy_filled_quantity == 0  # 20 queue minus 15 prints leaves 5.
+    assert doubled.steps[-1].active_bid is not None
+    assert doubled.steps[-1].active_bid.queue_ahead == NonNegativeQuantity("5")
+
+    through = _analysis(
+        rows[:1]
+        + [(_trade(Side.SELL, "0.39", "0.01"), book, ShadowQuoteAction.HOLD, _QUOTE)]
+    )
+    assert ConservativeFillSimulator().simulate(through).buy_filled_quantity == 5
+    assert (
+        ConservativeFillSimulator(FillAssumptions(allow_trade_through=False))
+        .simulate(through)
+        .fill_events
+        == 0
+    )
+
+
+def test_delay_replacement_cancellation_and_no_same_event_fills() -> None:
+    book = _book()
+    shadow = _analysis(
+        [
+            (_trade(Side.SELL, "0.39", "99"), book, ShadowQuoteAction.PLACE, _QUOTE),
+            (_trade(Side.SELL, "0.39", "1"), book, ShadowQuoteAction.HOLD, _QUOTE),
+            (_trade(Side.BUY, "0.61", "1"), book, ShadowQuoteAction.REPLACE, _QUOTE),
+            (_trade(Side.SELL, "0.39", "2"), book, ShadowQuoteAction.HOLD, _QUOTE),
+            (_trade(Side.BUY, "0.59", "2"), book, ShadowQuoteAction.CANCEL, None),
+            (_trade(Side.SELL, "0.39", "3"), book, ShadowQuoteAction.NONE, None),
+        ]
+    )
+    baseline = ConservativeFillSimulator().simulate(shadow)
+    delayed = ConservativeFillSimulator(
+        FillAssumptions(activation_delay_events=1)
+    ).simulate(shadow)
+    assert baseline.steps[0].fills == ()
+    assert [f.sequence_number for f in baseline.fills] == [2, 3, 4]
+    assert [f.sequence_number for f in delayed.fills] == [3]
+    assert delayed.steps[-1].active_bid is None
+    assert delayed.steps[-1].active_ask is None
+    assert delayed == ConservativeFillSimulator(
+        FillAssumptions(activation_delay_events=1)
+    ).simulate(shadow)  # reusable, no state leakage.
+
+
+def test_repeated_payload_and_snapshot_abstention_are_not_factual_deduplication() -> (
+    None
+):
+    book = _book((("0.40", "1"),))
+    snapshot = BookSnapshotReceived(_MARKET, _TOKEN, book, _TIME)
+    trade = _trade(Side.SELL, "0.40", "3")
+    shadow = _analysis(
+        [
+            (snapshot, book, ShadowQuoteAction.PLACE, _QUOTE),
+            (trade, book, ShadowQuoteAction.HOLD, _QUOTE),
+            (trade, book, ShadowQuoteAction.HOLD, _QUOTE),
+        ]
+    )
+    assert ConservativeFillSimulator().simulate(shadow).buy_filled_quantity == 5
+    assert (
+        ConservativeFillSimulator(FillAssumptions(suppress_repeated_trades=True))
+        .simulate(shadow)
+        .buy_filled_quantity
+        == 2
+    )
+    discontinuity = _analysis(
+        [
+            (snapshot, book, ShadowQuoteAction.PLACE, _QUOTE),
+            (snapshot, book, ShadowQuoteAction.HOLD, _QUOTE),
+            (trade, book, ShadowQuoteAction.HOLD, _QUOTE),
+            (snapshot, book, ShadowQuoteAction.REPLACE, _QUOTE),
+            (trade, book, ShadowQuoteAction.HOLD, _QUOTE),
+        ]
+    )
+    stressed = ConservativeFillSimulator(
+        FillAssumptions(suspend_on_snapshot=True)
+    ).simulate(discontinuity)
+    assert stressed.steps[2].fills == ()
+    assert stressed.steps[4].fills[0].fill_quantity == Quantity("2")
+
+
+def test_extra_queue_scales_growth_and_snapshot_without_advancing_on_decrease() -> None:
+    before = _book((("0.40", "1"),))
+    grown = _book((("0.40", "4"),))
+    snapshot = _book((("0.40", "9"),))
+    shadow = _analysis(
+        [
+            (
+                BookSnapshotReceived(_MARKET, _TOKEN, before, _TIME),
+                before,
+                ShadowQuoteAction.PLACE,
+                _QUOTE,
+            ),
+            (
+                PriceLevelChanged(
+                    _MARKET,
+                    _TOKEN,
+                    Side.BUY,
+                    Price("0.40"),
+                    NonNegativeQuantity("4"),
+                    _TIME,
+                ),
+                grown,
+                ShadowQuoteAction.HOLD,
+                _QUOTE,
+            ),
+            (
+                PriceLevelChanged(
+                    _MARKET,
+                    _TOKEN,
+                    Side.BUY,
+                    Price("0.40"),
+                    NonNegativeQuantity("1"),
+                    _TIME,
+                ),
+                before,
+                ShadowQuoteAction.HOLD,
+                _QUOTE,
+            ),
+            (
+                BookSnapshotReceived(_MARKET, _TOKEN, snapshot, _TIME),
+                snapshot,
+                ShadowQuoteAction.HOLD,
+                _QUOTE,
+            ),
+        ]
+    )
+    result = ConservativeFillSimulator(FillAssumptions(Decimal("2"))).simulate(shadow)
+    assert [
+        step.active_bid.queue_ahead.value
+        for step in result.steps
+        if step.active_bid is not None
+    ] == [2, 8, 8, 18]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"queue_multiplier": 2},
+        {"queue_multiplier": Decimal("NaN")},
+        {"queue_multiplier": Decimal("Infinity")},
+        {"queue_multiplier": Decimal("0.9")},
+        {"activation_delay_events": True},
+        {"activation_delay_events": -1},
+        {"activation_delay_events": 1.5},
+        {"allow_trade_through": 1},
+        {"suppress_repeated_trades": "yes"},
+        {"suspend_on_snapshot": None},
+    ],
+)
+def test_invalid_assumptions_fail_before_simulation(kwargs: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        FillAssumptions(**kwargs)
