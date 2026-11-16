@@ -27,8 +27,10 @@ from horus_engine.application import (
     TokenId,
     TradeObserved,
 )
+from horus_engine.application.fill_sensitivity import compare_fill_scenarios
 from horus_engine.application.market_data_replay import MarketDataSessionReplayer
 from horus_engine.application.session_quality import assess_session_quality
+from horus_engine.application.shadow_quotes import ShadowQuoteConfig
 from horus_engine.cli.main import main
 from horus_engine.cli.quality import quality
 from horus_engine.cli.shadow import _ShadowDependencies
@@ -365,3 +367,42 @@ def test_cli_connection_failure_cancellation_and_readonly_uri(
     monkeypatch.setattr(aiosqlite, "connect", connect)
     cli_module._open_read_only(tmp_path / "journal with space.db")
     assert calls == [((tmp_path / "journal with space.db").as_uri() + "?mode=ro", True)]
+
+
+def test_comparison_uses_one_frozen_read_and_blocks_rejected_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reader = _Reader((_snapshot(), _trade()))
+    config = ShadowQuoteConfig(1, Quantity("2"))
+    before = reader.updates
+    report = asyncio.run(compare_fill_scenarios(reader, _ID, config))
+    assert reader.reads == ["header", "updates"]
+    assert reader.updates == before
+    scenarios = report["scenarios"]
+    assert isinstance(scenarios, list) and len(scenarios) == 7
+    assert all(isinstance(s["buy_quantity"], str) for s in scenarios)
+    assert report["quote_config"] == {
+        "model": "midpoint",
+        "half_spread_ticks": 1,
+        "quantity": "2",
+    }
+    json.dumps(report)
+    reader.updates = (replace(reader.updates[0], sequence_number=9), *before[1:])
+    assert asyncio.run(compare_fill_scenarios(reader, _ID, config))["scenarios"] is None
+    reader.session = None
+    assert asyncio.run(compare_fill_scenarios(reader, _ID, config))["scenarios"] is None
+
+    async def broken(session_id: object) -> Any:
+        raise RuntimeError("private detail")
+
+    monkeypatch.setattr(reader, "list_updates", broken)
+    unavailable = asyncio.run(compare_fill_scenarios(reader, _ID, config))
+    assert unavailable["scenarios"] is None
+    assert "private detail" not in json.dumps(unavailable)
+
+    async def cancelled(session_id: object) -> Any:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(reader, "list_updates", cancelled)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(compare_fill_scenarios(reader, _ID, config))

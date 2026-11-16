@@ -3,7 +3,8 @@
 The simulator deliberately prefers missed fills to invented fills.  Quotes join
 behind all displayed liquidity, book decreases never advance their queue, and
 only later public trades can fill them.  A trade beyond a resting quote's price
-is treated as strong evidence that its complete remaining quantity filled.
+is assumed to fill its complete remaining quantity in the legacy baseline.
+This assumption is not a guaranteed lower bound on achievable executions.
 """
 
 from dataclasses import dataclass
@@ -317,6 +318,40 @@ class ConservativeFillAnalysis:
         return Decimal("0") if order is None else order.remaining_quantity.value
 
 
+@dataclass(frozen=True)
+class FillAssumptions:
+    """Uncalibrated sensitivity knobs; defaults preserve the legacy baseline."""
+
+    queue_multiplier: Decimal = Decimal("1")
+    activation_delay_events: int = 0
+    allow_trade_through: bool = True
+    suppress_repeated_trades: bool = False
+    suspend_on_snapshot: bool = False
+
+    def __post_init__(self) -> None:
+        """Allow only finite extra queue and nonnegative whole-event delays."""
+        if (
+            not isinstance(self.queue_multiplier, Decimal)
+            or not self.queue_multiplier.is_finite()
+            or self.queue_multiplier < 1
+        ):
+            raise ValueError("queue multiplier must be a finite Decimal >= 1")
+        if (
+            type(self.activation_delay_events) is not int
+            or self.activation_delay_events < 0
+        ):
+            raise ValueError("activation delay must be a nonnegative integer")
+        if any(
+            type(flag) is not bool
+            for flag in (
+                self.allow_trade_through,
+                self.suppress_repeated_trades,
+                self.suspend_on_snapshot,
+            )
+        ):
+            raise ValueError("fill assumption flags must be bool")
+
+
 class ConservativeFillSimulator:
     """Simulate conservative public-data maker fills over shadow decisions.
 
@@ -325,6 +360,10 @@ class ConservativeFillSimulator:
     not reduce queue ahead.  This intentionally omits hidden liquidity, venue
     acknowledgements, fees, rebates, rewards, and any profitability conclusion.
     """
+
+    def __init__(self, assumptions: FillAssumptions = FillAssumptions()) -> None:
+        """Select explicit research assumptions without changing the default."""
+        self.assumptions = assumptions
 
     def simulate(
         self, shadow_analysis: ShadowQuoteAnalysis
@@ -338,15 +377,32 @@ class ConservativeFillSimulator:
         qualifying_trades = 0
         fully_filled_buy_orders = 0
         fully_filled_sell_orders = 0
+        activated_at = 0
+        suspended = False
+        seen_trades: set[TradeObserved] = set()
         for index, decision in enumerate(shadow_analysis.decisions):
             self._validate_decision(shadow_analysis, decision, index)
             step = decision.replay_step
             event_fills: tuple[SimulatedMakerFill, ...] = ()
             if isinstance(step.event, TradeObserved):
+                repeated = False
+                if self.assumptions.suppress_repeated_trades:
+                    repeated = step.event in seen_trades
+                    seen_trades.add(step.event)
                 target = (
                     active_bid if step.event.aggressor_side is Side.SELL else active_ask
                 )
-                if target is not None and self._is_qualifying(target, step.event):
+                if (
+                    target is not None
+                    and index - activated_at > self.assumptions.activation_delay_events
+                    and not suspended
+                    and not (repeated and self.assumptions.suppress_repeated_trades)
+                    and self._is_qualifying(target, step.event)
+                    and (
+                        self.assumptions.allow_trade_through
+                        or target.price == step.event.price
+                    )
+                ):
                     qualifying_trades += 1
                     fill, replacement = self._apply_trade(
                         target, step.session_id, step.sequence_number, step.event
@@ -361,6 +417,14 @@ class ConservativeFillSimulator:
                             fully_filled_buy_orders += 1
                         else:
                             fully_filled_sell_orders += 1
+            if (
+                isinstance(step.event, BookSnapshotReceived)
+                and self.assumptions.suspend_on_snapshot
+            ):
+                suspended = True
+            if decision.action in (ShadowQuoteAction.PLACE, ShadowQuoteAction.REPLACE):
+                activated_at = index
+                suspended = False
             active_bid, active_ask = self._update_queue_bounds(
                 decision, previous_book, active_bid, active_ask
             )
@@ -499,8 +563,8 @@ class ConservativeFillSimulator:
             )
         return active_bid, active_ask
 
-    @staticmethod
     def _apply_level_increase(
+        self,
         order: SimulatedMakerOrder,
         event: PriceLevelChanged,
         before: OrderBook | None,
@@ -511,10 +575,8 @@ class ConservativeFillSimulator:
             return order
         increase = max(
             Decimal("0"),
-            ConservativeFillSimulator._visible_quantity(after, order.side, order.price)
-            - ConservativeFillSimulator._visible_quantity(
-                before, order.side, order.price
-            ),
+            self._visible_quantity(after, order.side, order.price)
+            - self._visible_quantity(before, order.side, order.price),
         )
         return SimulatedMakerOrder(
             order.side,
@@ -524,16 +586,15 @@ class ConservativeFillSimulator:
             NonNegativeQuantity(order.queue_ahead.value + increase),
         )
 
-    @staticmethod
     def _raise_to_visible(
-        order: SimulatedMakerOrder | None, book: OrderBook | None
+        self, order: SimulatedMakerOrder | None, book: OrderBook | None
     ) -> SimulatedMakerOrder | None:
         """Never let an authoritative snapshot lower a conservative queue bound."""
         if order is None:
             return None
         queue_ahead = max(
             order.queue_ahead.value,
-            ConservativeFillSimulator._visible_quantity(book, order.side, order.price),
+            self._visible_quantity(book, order.side, order.price),
         )
         return SimulatedMakerOrder(
             order.side,
@@ -618,13 +679,14 @@ class ConservativeFillSimulator:
             ),
         )
 
-    @staticmethod
-    def _visible_quantity(book: OrderBook | None, side: Side, price: Price) -> Decimal:
+    def _visible_quantity(
+        self, book: OrderBook | None, side: Side, price: Price
+    ) -> Decimal:
         """Read exact-price aggregate liquidity, excluding the simulated order."""
         if book is None:
             return Decimal("0")
         levels = book.bids if side is Side.BUY else book.asks
-        return next(
+        return self.assumptions.queue_multiplier * next(
             (level.quantity.value for level in levels if level.price == price),
             Decimal("0"),
         )
