@@ -25,3 +25,6 @@ jobs:
         run: >-
           uv run --offline python -m examples.offline_demo
           --output "$RUNNER_TEMP/horus-offline-demo"
+
+      - name: Run fixed synthetic benchmark
+        run: uv run --offline python -m examples.strategy_benchmark --synthetic

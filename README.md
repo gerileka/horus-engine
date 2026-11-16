@@ -265,3 +265,9 @@ make lint
 make typecheck
 make test
 ```
+
+## Fixed strategy benchmark
+
+See [the predeclared benchmark protocol](docs/strategy-benchmark.md) for the
+read-only chronological comparison, inventory/cost accounting, synthetic
+oracle and explicit real-data/fee blockers. This is not a profitability claim.
